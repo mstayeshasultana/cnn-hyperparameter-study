@@ -56,7 +56,7 @@ The final report compares:
 **Ayesha Sultana**  
 📧 [mst.ayesha1702@gmail.com] 
 - Course: *Introduction to Deep Learning* - 2025
-- University of Turku
+- University of Turku, Finland
  
 
 
