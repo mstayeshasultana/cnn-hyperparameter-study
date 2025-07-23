@@ -1,25 +1,11 @@
 # CNN Hyperparameter Study
 
-This project explores how various **design choices and hyperparameters** affect the performance of **Convolutional Neural Networks (CNNs)** on small image classification tasks using:
+## Project Overview
 
-- A 10-class subset of **CIFAR-100**
-- The **Imagenette** dataset
+This project examines the impact of various hyperparameters and design choices on the performance of a Convolutional Neural Network (CNN) in image classification tasks. Through a series of experiments, a baseline CNN model is trained and then systematically modified to evaluate the impact of network architecture (depth and width), activation functions, optimisation algorithms, learning rates, batch sizes, and number of training epochs. The experiments are conducted on two datasets – a reduced 10-class subset of **CIFAR-100** and the 10-class **Imagenette** dataset – to identify which combinations of architectural and training hyperparameters yield the best trade-offs between learning speed, accuracy, and overfitting on small image classification problems.
 
-## 📌 Objectives
 
-We systematically investigate:
-
-- Network **depth** and **width**
-- Different **activation functions**: ReLU, LeakyReLU, Tanh, Sigmoid
-- A variety of **optimizers** and **learning rates**
-- The effect of **batch size** and **training duration**
-- Trade-offs between learning speed, test accuracy, and overfitting
-
-## 🧪 Experiments
-
-All experiments are based on a simple three-block CNN architecture, progressively modified to measure the impact of each factor.
-
-### 🛠️ Tools & Libraries Used
+## Tools & Libraries Used
 
 - **Python**
 - **TensorFlow** and **Keras** – for building and training CNN models
@@ -29,26 +15,65 @@ All experiments are based on a simple three-block CNN architecture, progressivel
 - **Scikit-learn** – for preprocessing and evaluation
 - **OpenCV** – for image processing
 
-## 📊 Results
+## Dataset
+- **CIFAR-100 Subset:** We use a subset of the CIFAR-100 dataset consisting of 10 randomly selected classes (examples include tiger, road, bottle, etc.). Each image is a tiny 32×32 colour image. The subset is balanced, comprising 250 training images per class (2,500 training images in total) and 50 test images per class (500 test images in total). The images are normalized (pixel values scaled to [0,1]) and the class labels are one-hot encoded into 10-dimensional vectors.
+- **Imagenette:** For a second set of experiments, we use Imagenette, a smaller 10-class subset of ImageNet. The original Imagenette images are higher resolution, but in this study, they are downsampled to 32×32 pixels to match the CNN input size and complexity of CIFAR. We use the standard training and validation splits provided by TensorFlow Datasets for Imagenette (on the order of several thousand training images and a few thousand validation images across 10 classes). These images are also normalized to [0,1], and their labels are handled as integer labels (with appropriate one-hot encoding or sparse categories as needed by the model). Using two different datasets (one drawn from CIFAR and one from ImageNet) helps ensure that the findings are not specific to a single data source.
 
-The final report compares:
+## Model Architecture
+The baseline CNN model has a straightforward architecture designed for classifying 32×32 colour images into 10 classes. It consists of three convolutional-pooling blocks followed by two dense (fully-connected) layers:
+- **Convolutional Blocks:** The network takes a 32×32 RGB image input. It then applies a **Conv2D** **layer** with 32 filters (3×3 kernel, ReLU activation) followed by a 2×2 **MaxPooling** **layer** to reduce spatial size. This pattern repeats with a Conv2D layer of 64 filters, then pool, and a Conv2D of 128 filters, then pool. Each convolution uses a 3×3 kernel (with padding so that the feature map size is roughly halved by pooling only). These three conv+pool blocks progressively extract higher-level features: the filter counts 32 → 64 → 128 increase with each block to learn more complex image features.
+- **Fully Connected Layers:** After the final pooling, the 3D feature maps are flattened into a 1D feature vector. The baseline has two inner dense layers: one with 256 neurons and another with 128 neurons, each followed by a **ReLU activation.** To combat overfitting, a **Dropout** layer (50% dropout rate) is applied after each of these dense layers during training. Finally, an output layer with 10 units and **softmax** activation produces class probabilities for the 10 classes.
 
-- Test accuracy
-- Training curves
-- Overfitting behavior
-- Performance impact of architectural changes
+## Hyperparameters Studied
 
-## 📁 Files
+The following hyperparameters and design choices were explored in the experiments, each varied to observe its effect on model performance:
+- **Network Depth (Layers)**: We experimented with adding layers to make the CNN deeper than the baseline. For example, a variant model introduces a **fourth convolutional block** (with 256 filters) and even uses multiple convolution layers per block (two conv layers back-to-back before pooling) to significantly increase depth. This tests how a deeper feature extractor affects accuracy.
+- **Network Width (Layer Size):** Variations in the number of filters and neurons were tested. The baseline uses 32/64/128 conv filters and 256/128 dense units; in experiments these were expanded (e.g., adding a conv layer with 256 filters, or increasing the size of dense layers) to see if a wider network (more feature maps or more neurons) improves learning.
+- **Activation Functions**: We tried different activation functions in place of ReLU for both convolutional and dense layers. Experiments were run with **Leaky ReLU** (a variant allowing a small negative slope), **Sigmoid** (logistic activation), and **Tanh** (hyperbolic tangent) activations. Each activation function can influence training dynamics differently (e.g., Sigmoid and Tanh saturate for large inputs, whereas ReLU/LeakyReLU do not). We assessed how each activation affected convergence speed and accuracy. In some cases, activation function tests were done on both the baseline depth network and a deeper network to see how activation choice interacts with network depth.
+- **Optimizer Algorithms:** The training optimizer was varied across several popular algorithms:
+  * Stochastic Gradient Descent with momentum (**SGD** + momentum 0.9) at different learning rates (e.g., 0.01 vs 0.001).
+  * Adaptive optimizers including **Adam**, **AdamW** (Adam with weight decay), **Adamax**, **Nadam** (Adam with Nesterov momentum), **RMSprop**, and **Adadelta**. Each optimizer has different characteristics in how it updates weights. We tested a range of optimizers (with typical or recommended learning rates for each) to see which yields faster or better convergence on the tasks.
+- **Learning Rate:** Along with optimizer selection, the learning rate was adjusted. For instance, SGD was run with a standard LR (0.01) and a lower LR (0.001) to illustrate the effect on convergence. Other optimizers were used with learning rates around their defaults (Adam at 0.0005–0.001 in our tests, RMSprop at 0.002, etc.). This range of learning rates helps identify if the model is sensitive to step size and how tuning the learning rate interacts with different optimizers.
+- **Batch Size:** We compared training with different batch sizes: **32, 64, and 128** examples per batch. Batch size can impact the stability of training and how quickly the model converges (smaller batches introduce more gradient noise, potentially acting as regularization, while larger batches can be more stable but might converge to different optima). The experiments track how batch size influences the final accuracy and overfitting behavior.
+- **Number of Epochs (Training Duration):** The models were trained for different numbers of epochs to see the effect of longer training. We primarily examined 10, 20, and 30 epochs for a given setting (the baseline and most single-factor experiments used 25 or 30 epochs as a standard). In one combined experiment, each batch size was run for **10, 20, and 30 epochs **to determine if more training epochs yield higher accuracy or just more overfitting. This helps understand if a model has converged by 20 epochs or benefits from additional epochs.
+Each experiment modifies one or more of the above hyperparameters while keeping others constant, to isolate the effect of that change on performance.
 
-- `cnn-hyperparameter-study.ipynb`: Jupyter Notebook with all experiments and analysis.
+## Experimental Design
+The study is organized as a sequence of experiments, each designed to test a specific hypothesis about a hyperparameter:
+- We begin with a **baseline training** on the CIFAR-100 subset using the base CNN architecture (3 conv blocks, ReLU activations, Adam optimizer, batch size 64, 25 epochs). This establishes a reference accuracy and training behavior.
+- In subsequent experiments, we change **one factor at a time** (or a closely related set of factors) to observe the impact:
+  * Some experiments focus on architecture changes (e.g., making the network deeper or wider) and compare the results to the baseline architecture.
+  * Other experiments isolate activation functions by training new models identical to the baseline except using LeakyReLU, Tanh, or Sigmoid throughout.
+  * We also include experiments on optimizer and learning rate by training the same base model with different optimizers (and suitable learning rates) and measuring final accuracy for each.
+  * Finally, an experiment grid tests batch size vs. epochs by training the base model under all combinations of batch sizes {32, 64, 128} and epoch counts {10, 20, 30}, to see how shorter vs. longer training and smaller vs. larger batches affect performance.
+- **Metrics and Evaluation:** Model performance is primarily evaluated by the accuracy on a held-out dataset. For the CIFAR-100 subset, we use a dedicated test set (500 images) and report Test Accuracy after training. For Imagenette, we use the provided validation set as the evaluation metric (referred to as validation accuracy or final test accuracy on that subset). The training process also tracks **training accuracy and loss vs. validation accuracy and loss** each epoch. This allows us to monitor convergence behavior and detect overfitting (if training accuracy keeps improving while validation accuracy plateaus or drops).
+- **Procedure**: Each experiment follows a similar procedure: build the model with the desired hyperparameter setting, train it on the training data for a set number of epochs (using the same training/validation split for consistency), then evaluate the model on the appropriate test/validation set to obtain the final accuracy. Training logs (per-epoch accuracy/loss) are recorded, and in many cases plotted, to visualize how quickly the model learns and when/if it starts overfitting. Additionally, for each experiment, a short observation analysis is written (in the notebook) to summarize the findings for that particular change.
+- **Comparisons**: By comparing the final accuracies and training curves of each experiment to the baseline, we can identify which hyperparameter changes were beneficial. For example, if a deeper network yields higher validation accuracy than the baseline, that indicates a benefit of added depth (provided it did not overfit significantly). Conversely, if an alternative activation function causes the model to train slower or reach lower accuracy, we note that as a detrimental effect. The experimental design thus allows side-by-side comparison of each variant under the same conditions.
+In summary, the experimental approach is a controlled ablation study on CNN design and training settings, with consistent evaluation metrics (accuracy) to quantify the impact of each change. This helps in drawing conclusions about best practices for CNNs on small-scale image classification.
 
-## 📚 Dataset Links
-
-- **CIFAR-100 Subset**: A classic image classification dataset of 100 fine-grained classes. This project uses 10 randomly selected classes.  
-  🔗 [Download from Keras](https://www.cs.toronto.edu/~kriz/cifar.html)
-
-- **Imagenette**: A smaller, easier subset of ImageNet used for quick experimentation and benchmarking.  
-  🔗 [Download from fast.ai](https://github.com/fastai/imagenette)
+## Results Summary
+Overall, the experiments revealed important insights into how different hyperparameters influence CNN performance. Below is a summary of key findings and trends observed:
+- **Activation Function Effects:** The choice of activation had a significant impact on training:
+  * Models with **Sigmoid activations** failed to train effectively – they often got stuck at ~10% accuracy (essentially random guessing for 10 classes). This is likely due to sigmoids saturating and causing vanishing gradients in deep layers.
+  * **Tanh activations** (which are zero-centered) showed faster initial learning than Sigmoid. Tanh-based models learned more quickly in early epochs, especially in deeper networks, reaching reasonably high accuracy. However, they tended to overfit later: after a certain point, training accuracy kept improving while validation accuracy stagnated or dropped, resulting in final performance slightly trailing the ReLU-based models. A deeper network with Tanh did reach high accuracy (~77% test accuracy at peak), but careful regularization was needed.
+  * **ReLU** (baseline) provided stable and good performance. The baseline ReLU network achieved about 70–75% accuracy on the test sets, and maintained a healthy gap between training and validation accuracy (not overfitting too severely by epoch 25). ReLU does not suffer from saturation, enabling deeper layers to train.
+  * **Leaky ReLU** emerged as the best overall activation in our tests. Models using Leaky ReLU not only converged reliably (avoiding the “dead neuron” problem that ReLU can have), but also achieved the highest accuracies. Notably, when we increased network depth, the Leaky ReLU models continued to train well (where other activations like Tanh started to overfit or Sigmoid failed). Leaky ReLU provided a good balance – it retained the fast convergence of ReLU but with improved stability, yielding the top performance among activation functions in our study.
+- **Network Depth and Capacity:** Simply making the network deeper or increasing layer widths did not guarantee better results – it depended on the context:
+  * A **moderate increase in capacity** could help. For instance, increasing the size of the dense layers (from 256/128 to 512/256, etc.) or adding an extra conv layer sometimes boosted accuracy a bit (our experiment with a larger dense head saw a small increase to ~71.4% from 70.2%). This suggests the baseline was slightly under-capacity for the task, so a bit more capacity helped learning.
+  * However, **excessive depth without additional techniques can be counterproductive.** Our “conv expansion” model, which had 4 convolutional blocks and a total of 8 conv layers (two convs per block) plus four pooling layers, actually performed worse on CIFAR (final accuracy dropped to ~64%) and completely failed on Imagenette (only ~10% accuracy, i.e. it couldn’t learn). The overly deep model over-compressed the 32×32 inputs (down to a very small feature map after so many pools) and likely suffered from optimization difficulties (no normalization or skip connections were used to ease training). This highlights that **going deeper needs to be accompanied by measures like batch normalization, skip connections (as in ResNets), or more data,** otherwise the added depth can lead to **vanishing gradients or representational collapse.**
+  * When depth was increased in a more controlled way (e.g., just one extra conv block) and paired with a robust activation (LeakyReLU or Tanh) and dropout, the deeper models did improve results on the Imagenette task. For example, a 4-block LeakyReLU model on Imagenette achieved higher accuracy than the 3-block version. This suggests that depth can pay off if the activation and regularization can handle it (preventing overfitting and training failure).
+- **Optimizer and Learning Rate:** The choice of optimizer had a clear effect on both how fast the model learned and the final accuracy:
+  * Among the optimizers tested, adaptive gradient methods outperformed plain SGD. For instance, **Adam and AdamW** yielded the best results, reaching around **75–76%** accuracy on the CIFAR subset (with 25 epochs), whereas **SGD with momentum** reached about **64%** under the same conditions (learning rate 0.01). SGD required careful tuning of the learning rate (at 0.001 it learned too slowly, only ~40% accuracy). Adaptive optimizers (Adam, RMSprop, etc.) were **less sensitive to the initial learning rate** and gave strong performance out-of-the-box.
+  * **AdamW (Adam with weight decay)** slightly edged out vanilla Adam in our test (AdamW achieved ~75.8% vs. Adam’s 75.4% on CIFAR), suggesting a small benefit from weight decay regularization. **Nadam** and **Adamax** also performed well (72–68% range), all beating SGD. **RMSprop** was middling (~63%). The clear loser was **Adadelta** with its default learning rate of 1.0 – it failed to make progress (ending around 9–10% accuracy, essentially no learning). This emphasizes that **optimizer choice is critical**: modern adaptive optimizers can significantly speed up convergence and reach higher accuracy on these tasks, whereas using SGD without extensive tuning or using an ill-suited optimizer can result in poor performance.
+  * The experiments also underscore the importance of **learning rate tuning.** For SGD, a too-high rate can overshoot and a too-low rate can stall (we saw a big drop in accuracy when reducing SGD’s LR by 10×). The adaptive methods were more forgiving with the chosen rates. When using this code, one should be mindful to adjust learning rates when switching optimizers (as we did in the experiment configurations).
+- **Batch Size and Epochs:** We observed an interaction between batch size and number of training epochs in terms of model performance:
+  * **Smaller batches (32)** tended to generalize slightly better given a sufficient number of epochs. In our grid search, **Batch 32 with 30 epochs achieved the highest accuracy (~77.8%) on the CIFAR subset.** The model trained on small batches may benefit from the noisy gradient updates as a form of regularization, which, given enough epochs, leads to a higher peak accuracy.
+  * **Medium batch sizes (64)** were nearly as effective: Batch 64 with 20 epochs reached about 77.0% accuracy, very close to the best result. Interestingly, when we extended batch 64 training to 30 epochs, the accuracy actually dropped to ~72.8% (from 77% at 20 epochs). This indicates that the model started to overfit the training data between epoch 20 and 30 when using the larger batch. The validation accuracy peaked earlier and then declined with continued training.
+  * **Large batches (128)** learned the slowest initially (only ~67% in 10 epochs) and needed more epochs to catch up. By 30 epochs, batch 128 reached ~75.6% accuracy, still a bit below the smaller batch results. This aligns with the notion that larger batches can converge to somewhat lower generalization performance in some cases. They also might require a learning rate adjustment or more epochs to reach the same level of accuracy.
+  * In practical terms, these results suggest using a moderately small batch (e.g. 32) and training for more epochs can yield a slight performance boost, albeit with more training time. On the other hand, a batch of 64 for fewer epochs (20) was almost as good and could be more time-efficient while avoiding overfitting. Training much longer (30 epochs) with a large batch clearly showed diminishing returns and signs of overfitting, so one should monitor validation metrics and possibly use early stopping.
+    
+In summary, the experiments highlight the following: 
+**LeakyReLU is a strong choice of activation for deep CNNs**, too much depth **without proper techniques can hurt performance**, adaptive optimizers like **Adam/AdamW are superior on these tasks (while Adadelta failed)**, and **smaller batch sizes with sufficient epochs can improve final accuracy** (though one must watch for overfitting with extended training). These insights can guide building and tuning CNN models for similar small-scale image classification problems.
 
 
 ## 👩‍💻 Author
